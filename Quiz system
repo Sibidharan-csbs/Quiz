@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto-Advancing Dynamic Quiz</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <style>
+        /* --- CSS STYLES --- */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            background: #ffffff;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 600px;
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 25px;
+            font-size: 1.8rem;
+        }
+
+        /* --- Quiz Content Area --- */
+        #quiz-content {
+            flex-grow: 1;
+        }
+        
+        #question-number {
+            font-size: 1rem;
+            color: #6c757d;
+            margin-bottom: 10px;
+        }
+
+        #question-text {
+            font-size: 1.5rem;
+            color: #1a1a2e;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        /* --- Answer Options --- */
+        .option-list {
+            list-style: none;
+            padding: 0;
+            display: grid;
+            gap: 10px;
+        }
+
+        .option {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: left;
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+
+        .option:hover:not(.disabled) {
+            background-color: #e9ecef;
+            border-color: #007bff;
+        }
+        
+        .option.disabled {
+            cursor: default;
+        }
+
+        .option.correct {
+            background-color: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+            font-weight: bold;
+            transform: scale(1.02);
+        }
+
+        .option.incorrect {
+            background-color: #f8d7da;
+            border-color: #dc3545;
+            color: #721c24;
+        }
+
+        /* --- Buttons --- */
+        .controls {
+            display: flex;
+            justify-content: center;
+            margin-top: 30px;
+        }
+
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1rem;
+            transition: background-color 0.2s;
+        }
+
+        #startButton, #restartButton {
+            background-color: #007bff;
+            color: white;
+            width: 100%;
+        }
+        #startButton:hover, #restartButton:hover {
+            background-color: #0056b3;
+        }
+        
+        /* --- Results Screen --- */
+        #results-screen {
+            text-align: center;
+            padding: 20px;
+        }
+        #results-screen h2 {
+            color: #28a745;
+            margin-bottom: 15px;
+            font-size: 2rem;
+        }
+        #results-screen #score-display {
+            font-size: 3rem;
+            color: #007bff;
+            font-weight: 700;
+            margin: 20px 0;
+        }
+        
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1><i class="fas fa-question-circle"></i> Frontend Skills Quiz</h1>
+
+        <div id="start-screen" class="controls">
+            <button id="startButton" class="btn">Start Quiz</button>
+        </div>
+
+        <div id="quiz-content" class="hidden">
+            <p id="question-number"></p>
+            <p id="question-text"></p>
+            
+            <ul class="option-list" id="option-list">
+                </ul>
+        </div>
+        
+        <div id="results-screen" class="hidden">
+            <h2>Quiz Complete!</h2>
+            <div id="score-display"></div>
+            <p>You have finished the quiz.</p>
+            <div class="controls">
+                <button id="restartButton" class="btn">Restart Quiz</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // --- JAVASCRIPT LOGIC ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Quiz Data ---
+            const quizQuestions = [
+                {
+                    question: "Which CSS property is used to make a grid container's items align along the main axis?",
+                    options: ["align-items", "justify-content", "align-content", "grid-template-areas"],
+                    answer: "justify-content"
+                },
+                {
+                    question: "In JavaScript, what method is used to persist data in a user's browser across sessions?",
+                    options: ["SessionStorage.set()", "Document.write()", "localStorage.setItem()", "cookie.set()"],
+                    answer: "localStorage.setItem()"
+                },
+                {
+                    question: "What is the primary purpose of the 'useEffect' hook in a React functional component?",
+                    options: ["To manage state variables", "To handle component routing", "To perform side effects (data fetching, subscriptions, etc.)", "To define class methods"],
+                    answer: "To perform side effects (data fetching, subscriptions, etc.)"
+                },
+                {
+                    question: "What does AJAX stand for?",
+                    options: ["Asynchronous JavaScript and XML", "Advanced JavaScript and XML", "Asynchronous JSON and XHTML", "All JavaScript and XAML"],
+                    answer: "Asynchronous JavaScript and XML"
+                },
+                {
+                    question: "Which term defines the ability of JavaScript to stop executing code until an operation (like fetching data) is complete?",
+                    options: ["Synchronous", "Threading", "Event Bubbling", "Asynchronous"],
+                    answer: "Asynchronous"
+                }
+            ];
+
+            // --- State Variables ---
+            let currentQuestionIndex = 0;
+            let score = 0;
+
+            // --- DOM Elements ---
+            const startScreen = document.getElementById('start-screen');
+            const quizContent = document.getElementById('quiz-content');
+            const resultsScreen = document.getElementById('results-screen');
+            const startButton = document.getElementById('startButton');
+            const restartButton = document.getElementById('restartButton');
+            const questionNumberDisplay = document.getElementById('question-number');
+            const questionTextDisplay = document.getElementById('question-text');
+            const optionList = document.getElementById('option-list');
+            const scoreDisplay = document.getElementById('score-display');
+
+
+            // --- Core Functions ---
+
+            function startQuiz() {
+                // Reset state
+                currentQuestionIndex = 0;
+                score = 0;
+                
+                // Switch screens
+                startScreen.classList.add('hidden');
+                resultsScreen.classList.add('hidden');
+                quizContent.classList.remove('hidden');
+                
+                showQuestion();
+            }
+
+            function showQuestion() {
+                // Check if quiz is finished
+                if (currentQuestionIndex >= quizQuestions.length) {
+                    showResults();
+                    return;
+                }
+
+                optionList.innerHTML = ''; // Clear previous options
+                const currentQuestion = quizQuestions[currentQuestionIndex];
+                
+                // Update UI elements
+                questionNumberDisplay.textContent = `Question ${currentQuestionIndex + 1} of ${quizQuestions.length}`;
+                questionTextDisplay.textContent = currentQuestion.question;
+                
+                // Render options
+                currentQuestion.options.forEach(optionText => {
+                    const optionElement = document.createElement('li');
+                    optionElement.classList.add('option');
+                    optionElement.textContent = optionText;
+                    
+                    // Attach event listener for answering
+                    optionElement.addEventListener('click', () => handleAnswer(optionElement, optionText, currentQuestion.answer));
+                    
+                    optionList.appendChild(optionElement);
+                });
+            }
+
+            function handleAnswer(selectedElement, selectedText, correctAnswer) {
+                // 1. Disable all options to prevent multiple clicks
+                const allOptions = optionList.querySelectorAll('.option');
+                allOptions.forEach(opt => opt.classList.add('disabled'));
+                
+                // 2. Apply feedback immediately
+                let isCorrect = (selectedText === correctAnswer);
+
+                // Highlight user's choice
+                if (!isCorrect) {
+                    selectedElement.classList.add('incorrect');
+                }
+                
+                // Highlight the correct answer (always)
+                allOptions.forEach(opt => {
+                    if (opt.textContent === correctAnswer) {
+                        opt.classList.add('correct');
+                    }
+                });
+
+                // 3. Update score
+                if (isCorrect) {
+                    score++;
+                }
+
+                // 4. Advance to next question after 2 seconds
+                setTimeout(() => {
+                    currentQuestionIndex++;
+                    showQuestion();
+                }, 2000); 
+            }
+            
+            function showResults() {
+                quizContent.classList.add('hidden');
+                resultsScreen.classList.remove('hidden');
+                
+                const percentage = ((score / quizQuestions.length) * 100).toFixed(0);
+                scoreDisplay.innerHTML = `${score} / ${quizQuestions.length}<br>(${percentage}%)`;
+            }
+
+            // --- Event Listeners ---
+            startButton.addEventListener('click', startQuiz);
+            restartButton.addEventListener('click', startQuiz);
+            
+            // Initial state load: The start screen is shown by default via HTML structure
+        });
+    </script>
+</body>
+</html>
